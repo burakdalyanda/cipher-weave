@@ -1,7 +1,7 @@
 {
     "name": "burakdalyanda/cipher-weave",
     "description": "description",
-    "license": "GNU GPLv3",
+    "license": "MIT",
     "type": "library",
     "keywords": [
         "cipher",
@@ -21,9 +21,11 @@
         {
             "name": "Burak Dalyanda",
             "email": "burak.dalyanda@hotmail.com",
+            "homepage": "https://github.com/burakdalyanda",
             "role": "Developer"
         }
     ],
+    "homepage": "https://github.com/burakdalyanda/cipher-weave",
     "require": {
         "php": "^8.0",
         "illuminate/support": "^8.12|^9.0|^10.0|^11.0",
@@ -45,6 +47,9 @@
         "psr-4": {
             "BurakDalyanda\\CipherWeave\\Tests\\": "tests/"
         }
+    },
+    "config": {
+        "sort-packages": true
     },
     "extra": {
         "laravel": {
