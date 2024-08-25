@@ -49,7 +49,7 @@ This will create a config/cipherweave.php file where you can adjust settings lik
 
 ## Contributing
 
-Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for more details on how to get involved.
+The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
 
 ## License
 
