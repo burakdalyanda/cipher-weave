@@ -7,6 +7,12 @@ CipherWeave is a Laravel middleware package designed to encrypt outgoing respons
 - **Seamless Integration**: Easily integrate CipherWeave into your Laravel project.
 - **Encryption & Decryption**: Automatically encrypt responses and decrypt requests.
 - **Configurable Security**: Customize encryption settings to fit your security needs.
+- **Flexible Key Management**: Optionally override encryption keys for specific routes or manual operations.
+
+## Requirements
+
+- PHP 8.0 or higher
+- Laravel 8.x or 9.x
 
 ## Installation
 
@@ -15,6 +21,34 @@ To install CipherWeave, use Composer:
 ```bash
 composer require burakdalyanda/cipher-weave
 ```
+
+## Configuration
+
+Publish the configuration file to customize encryption settings:
+
+```bash
+php artisan vendor:publish --tag=cipherweave-config
+```
+
+This will create a `config/cipher.php` file where you can adjust settings such as encryption algorithm, key, and whether to disable encryption in debug mode.
+
+Key Settings:
+
+* The encryption key can be set in your .env file using CIPHER_KEY.
+* The default encryption key is the APP_KEY defined in the .env file.
+* Cipher algorithms supported: "`AES-128-CBC`", "`AES-256-CBC`".
+
+Example Configuration:
+
+```php
+return [
+    'key' => env('CIPHER_KEY', env('APP_KEY')),
+    'cipher' => env('CIPHER_ALGORITHM', 'AES-128-CBC'),
+    'initial_vector' => env('CIPHER_IV', '0123456789ABCDEF'),
+    'disable_on_debug' => false,
+];
+```
+
 
 ## Usage
 
@@ -28,7 +62,7 @@ protected $routeMiddleware = [
 ];
 ```
 ### Protect Routes
-Apply the middleware to your routes in routes/web.php or routes/api.php:
+Apply the middleware to your routes in `routes/web.php` or `routes/api.php`:
 
 ```php
 Route::middleware(['encrypt.request.response'])->group(function () {
@@ -37,20 +71,50 @@ Route::middleware(['encrypt.request.response'])->group(function () {
 });
 ```
 
-### Configuration
+#### Using a Custom Encryption Key for Specific Routes
 
-Publish the configuration file to customize encryption settings:
+You can override the default encryption key for specific routes or route groups by passing a key parameter to the middleware:
 
-```bash
-php artisan vendor:publish --tag=cipherweave-config
+```php
+Route::middleware(['encrypt.request.response:custom_key'])->group(function () {
+    Route::get('/secure-endpoint', 'SecureController@index');
+    // Other routes
+});
 ```
 
-This will create a config/cipherweave.php file where you can adjust settings like encryption algorithm, key length, etc.
+### Manual Encryption/Decryption
+
+You can also manually encrypt or decrypt data using the CipherWeaveManual class:
+
+```php
+use BurakDalyanda\CipherWeave\CipherWeaveManual;
+
+$cipher = new CipherWeaveManual();
+
+// Encrypt data
+$encryptedData = $cipher->encryptData($data, 'optional_custom_key');
+
+// Decrypt data
+$decryptedData = $cipher->decryptData($encryptedData, 'optional_custom_key');
+```
+
+### Advanced Usage
+
+#### Disabling Encryption in Debug Mode
+
+If you want to disable encryption while your application is in debug mode (e.g., during development), you can set the **disable_on_debug** configuration option to true in the `config/cipher.php` file:
+
+```php
+'disable_on_debug' => true,
+```
+
+This will bypass encryption and decryption processes when `APP_DEBUG` is set to true in your `.env` file.
+
 
 ## Contributing
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for more details on how to get involved.
 
 ## License
 
-CipherWeave is open-sourced software licensed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html).
+The MIT License (MIT). Please see the [License File](LICENSE) for more information.
