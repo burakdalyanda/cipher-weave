@@ -17,8 +17,6 @@ class CipherWeaveServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-//        $this->app->register(CipherWeaveServiceProvider::class);
-
         $this->app->singleton(CipherWeave::class, function () {
             return new CipherWeave();
         });
