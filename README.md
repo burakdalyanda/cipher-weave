@@ -24,14 +24,14 @@ Add the middleware to your `app/Http/Kernel.php` file:
 ```php
 protected $routeMiddleware = [
     // Other middleware
-    'cipherweave' => \Dalyanda\CipherWeave\Middleware\CipherWeave::class,
+    'encrypt.request.response' => \BurakDalyanda\CipherWeave\Middleware\EncryptRequestResponse::class,
 ];
 ```
 ### Protect Routes
 Apply the middleware to your routes in routes/web.php or routes/api.php:
 
 ```php
-Route::middleware(['cipherweave'])->group(function () {
+Route::middleware(['encrypt.request.response'])->group(function () {
     Route::get('/secure-endpoint', 'SecureController@index');
     // Other routes
 });
