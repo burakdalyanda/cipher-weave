@@ -1,52 +1,68 @@
 <?php
 
+declare(strict_types=1);
+
 namespace BurakDalyanda\CipherWeave\Tests;
 
+use BurakDalyanda\CipherWeave\CipherWeaveServiceProvider;
+use BurakDalyanda\CipherWeave\Contracts\CipherWeaveInterface;
 use BurakDalyanda\CipherWeave\Middleware\EncryptRequestResponse;
-use BurakDalyanda\CipherWeave\CipherWeave;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Route;
-use Tests\TestCase;
+use Illuminate\Support\Facades\Config;
+use Orchestra\Testbench\TestCase;
 
 class EncryptRequestResponseTest extends TestCase
 {
+    protected function getPackageProviders($app)
+    {
+        return [
+            CipherWeaveServiceProvider::class,
+        ];
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Set up test middleware
-        $this->middleware = new EncryptRequestResponse(new CipherWeave());
+        Config::set('cipherweave.key', 'base64:'.base64_encode(random_bytes(32)));
+        Config::set('cipherweave.cipher', 'AES-256-CBC');
     }
 
-    public function testEncryptResponse()
+    public function test_it_decrypts_request_if_header_is_present()
     {
-        $response = new JsonResponse(['message' => 'This is a response.']);
+        $cipher = $this->app->make(CipherWeaveInterface::class);
+        $data = ['foo' => 'bar'];
+        $encrypted = $cipher->encrypt(json_encode($data));
 
-        $request = Request::create('/test', 'GET', [], [], [], ['HTTP_X_REQUEST_ENCRYPTED' => false]);
+        $request = Request::create('/test', 'POST', [], [], [], [
+            'HTTP_X-REQUEST-ENCRYPTED' => '1',
+            'CONTENT_TYPE' => 'application/json'
+        ], $encrypted);
 
-        $encryptedResponse = $this->middleware->handle($request, function () use ($response) {
-            return $response;
+        $middleware = new EncryptRequestResponse($cipher);
+
+        $middleware->handle($request, function ($req) use ($data) {
+            $this->assertEquals($data, $req->all());
+            return new JsonResponse(['status' => 'ok']);
         });
-
-        $this->assertStringStartsWith('base64:', $encryptedResponse->getContent());
-        $this->assertTrue($encryptedResponse->headers->has('X-RESPONSE-ENCRYPTED'));
     }
 
-    public function testDecryptRequest()
+    public function test_it_encrypts_json_response()
     {
-        $data = ['key' => 'value'];
-        $cipherWeave = new CipherWeave();
-        $encryptedData = $cipherWeave->encrypt(json_encode($data));
+        $cipher = $this->app->make(CipherWeaveInterface::class);
+        $request = Request::create('/test', 'GET');
 
-        $request = Request::create('/test', 'POST', [], [], [], [], $encryptedData);
-        $request->headers->set('X-REQUEST-ENCRYPTED', '1');
+        $middleware = new EncryptRequestResponse($cipher);
 
-        $decryptedRequest = $this->middleware->handle($request, function ($request) {
-            return $request;
+        $response = $middleware->handle($request, function ($req) {
+            return new JsonResponse(['message' => 'hello']);
         });
 
-        $this->assertEquals($data, $decryptedRequest->all());
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertTrue($response->headers->has('X-RESPONSE-ENCRYPTED'));
+
+        $decrypted = $cipher->decrypt($response->getContent());
+        $this->assertEquals('{"message":"hello"}', $decrypted);
     }
 }

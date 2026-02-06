@@ -1,9 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace BurakDalyanda\CipherWeave;
 
+use BurakDalyanda\CipherWeave\Contracts\CipherWeaveInterface;
+use BurakDalyanda\CipherWeave\Exceptions\DecryptionException;
+use BurakDalyanda\CipherWeave\Exceptions\EncryptionException;
+use Exception;
 use Illuminate\Encryption\Encrypter as LaravelEncrypter;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 
 /**
@@ -11,27 +18,19 @@ use Illuminate\Support\Str;
  *
  * Handles encryption and decryption of data using Laravel's Encrypter.
  */
-class CipherWeave
+class CipherWeave implements CipherWeaveInterface
 {
-    /**
-     * @var LaravelEncrypter
-     */
-    protected LaravelEncrypter $encrypter;
-
     /**
      * @var bool
      */
-    protected bool $disableOnDebug;
+    protected readonly bool $disableOnDebug;
 
     /**
      * CipherWeave constructor.
-     *
-     * @param string|null $key Optional encryption key. If not provided, the key from config is used.
      */
-    public function __construct(?string $key = null)
+    public function __construct()
     {
-        $this->disableOnDebug = config('cipher.disable_on_debug');
-        $this->encrypter = $this->createEncrypter($key);
+        $this->disableOnDebug = (bool) Config::get('cipherweave.disable_on_debug', false);
     }
 
     /**
@@ -42,15 +41,20 @@ class CipherWeave
      */
     protected function createEncrypter(?string $key = null): LaravelEncrypter
     {
-        $key = $key ?? config('cipher.key');
+        $key = $key ?? Config::get('cipherweave.key');
+        $cipher = Config::get('cipherweave.cipher', 'AES-128-CBC');
 
-        if (Str::contains($key, 'base64:')) {
-            $key = substr($key, 7);
+        if (Str::contains((string) $key, 'base64:')) {
+            $key = substr((string) $key, 7);
         }
 
-        $key = base64_decode($key);
+        $decodedKey = base64_decode((string) $key, true);
 
-        return new LaravelEncrypter($key, config('cipher.cipher'));
+        if ($decodedKey === false) {
+             throw new EncryptionException("Invalid encryption key provided.");
+        }
+
+        return new LaravelEncrypter($decodedKey, (string) $cipher);
     }
 
     /**
@@ -59,15 +63,20 @@ class CipherWeave
      * @param mixed $data Data to encrypt.
      * @param string|null $key Optional encryption key. If not provided, the key from config is used.
      * @return string Encrypted data.
+     * @throws EncryptionException
      */
     public function encrypt(mixed $data, ?string $key = null): string
     {
         if ($this->shouldDisableEncryption()) {
-            return $data; // Encryption disabled in debug mode
+            return is_string($data) ? $data : json_encode($data);
         }
 
-        $encrypter = $this->createEncrypter($key);
-        return $encrypter->encrypt($data);
+        try {
+            $encrypter = $this->createEncrypter($key);
+            return $encrypter->encrypt($data);
+        } catch (Exception $e) {
+            throw new EncryptionException($e->getMessage(), (int) $e->getCode(), $e);
+        }
     }
 
     /**
@@ -76,15 +85,20 @@ class CipherWeave
      * @param string $encryptedData Data to decrypt.
      * @param string|null $key Optional encryption key. If not provided, the key from config is used.
      * @return mixed Decrypted data.
+     * @throws DecryptionException
      */
     public function decrypt(string $encryptedData, ?string $key = null): mixed
     {
         if ($this->shouldDisableEncryption()) {
-            return $encryptedData; // Encryption disabled in debug mode
+            return $encryptedData;
         }
 
-        $encrypter = $this->createEncrypter($key);
-        return $encrypter->decrypt($encryptedData);
+        try {
+            $encrypter = $this->createEncrypter($key);
+            return $encrypter->decrypt($encryptedData);
+        } catch (Exception $e) {
+            throw new DecryptionException($e->getMessage(), (int) $e->getCode(), $e);
+        }
     }
 
     /**
@@ -94,6 +108,6 @@ class CipherWeave
      */
     protected function shouldDisableEncryption(): bool
     {
-        return $this->disableOnDebug && App::isDebug();
+        return $this->disableOnDebug && (bool) Config::get('app.debug');
     }
 }

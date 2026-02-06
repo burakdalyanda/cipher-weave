@@ -46,14 +46,24 @@ If you want to contribute code to the project, please follow these steps:
 4. **Make Changes**
 
    Make your changes to the code. Ensure your code follows the project's coding standards.
-5. Commit Your Changes
+5. **Commit Your Changes**
 
-   Commit your changes with a clear and descriptive commit message:
+   Commit your changes using the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
    ```bash
    git add .
-   git commit -m "Add feature: my new feature"
+   git commit -m "feat: add my new feature"
    ```
+
+   Common types:
+   - `feat`: A new feature
+   - `fix`: A bug fix
+   - `docs`: Documentation only changes
+   - `style`: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
+   - `refactor`: A code change that neither fixes a bug nor adds a feature
+   - `perf`: A code change that improves performance
+   - `test`: Adding missing tests or correcting existing tests
+   - `chore`: Changes to the build process or auxiliary tools and libraries such as documentation generation
 6. Push to Your Fork
 
     Push your changes to your forked repository:

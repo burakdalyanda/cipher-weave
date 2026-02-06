@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace BurakDalyanda\CipherWeave\Middleware;
 
+use BurakDalyanda\CipherWeave\Contracts\CipherWeaveInterface;
 use Closure;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use BurakDalyanda\CipherWeave\CipherWeave;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Class EncryptRequestResponse
@@ -15,70 +18,72 @@ use BurakDalyanda\CipherWeave\CipherWeave;
 class EncryptRequestResponse
 {
     /**
-     * @var CipherWeave
-     */
-    protected CipherWeave $cipherWeave;
-
-    /**
      * EncryptRequestResponse constructor.
      *
-     * @param CipherWeave $cipherWeave Instance of the CipherWeave class.
+     * @param CipherWeaveInterface $cipherWeave Instance of the CipherWeave class.
      */
-    public function __construct(CipherWeave $cipherWeave)
-    {
-        $this->cipherWeave = $cipherWeave;
+    public function __construct(
+        protected readonly CipherWeaveInterface $cipherWeave
+    ) {
     }
 
     /**
      * Handles the request and response encryption/decryption.
      *
-     * @param Request $request The incoming request.
-     * @param Closure $next The next middleware or request handler.
-     * @param string|null $key Optional encryption key. If not provided, the key from config is used.
-     * @return JsonResponse The response after processing.
+     * @param Request $request
+     * @param Closure $next
+     * @param string|null $key Optional encryption key.
+     * @return Response
      */
-    public function handle(Request $request, Closure $next, ?string $key = null)
+    public function handle(Request $request, Closure $next, ?string $key = null): Response
     {
-        $cipherWeave = new CipherWeave($key);
-
         if ($request->header('X-REQUEST-ENCRYPTED')) {
-            $this->modifyRequest($request, $cipherWeave);
+            $this->decryptRequest($request, $key);
         }
 
         $response = $next($request);
 
         if ($response instanceof JsonResponse) {
-            $this->modifyResponse($request, $response, $cipherWeave);
+            $this->encryptResponse($response, $key);
         }
 
         return $response;
     }
 
     /**
-     * Modifies the request by decrypting its content if the request is encrypted.
+     * Decrypts the request content.
      *
-     * @param Request $request The incoming request.
-     * @param CipherWeave $cipherWeave Instance of the CipherWeave class.
+     * @param Request $request
+     * @param string|null $key
      * @return void
      */
-    protected function modifyRequest(Request $request, CipherWeave $cipherWeave)
+    protected function decryptRequest(Request $request, ?string $key = null): void
     {
-        $decrypted = $cipherWeave->decrypt($request->getContent());
-        $request->replace(json_decode($decrypted, true));
+        $decrypted = $this->cipherWeave->decrypt($request->getContent(), $key);
+
+        if (is_string($decrypted)) {
+            $data = json_decode($decrypted, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $request->replace($data);
+            }
+        }
     }
 
     /**
-     * Modifies the response by encrypting its content if the response should be encrypted.
+     * Encrypts the response content.
      *
-     * @param Request $request The incoming request.
-     * @param JsonResponse $response The response to be sent.
-     * @param CipherWeave $cipherWeave Instance of the CipherWeave class.
+     * @param JsonResponse $response
+     * @param string|null $key
      * @return void
      */
-    protected function modifyResponse(Request $request, JsonResponse $response, CipherWeave $cipherWeave)
+    protected function encryptResponse(JsonResponse $response, ?string $key = null): void
     {
-        $payload = $cipherWeave->encrypt($response->getContent());
-        $response->setContent($payload);
-        $response->header('X-RESPONSE-ENCRYPTED', '1');
+        $content = $response->getContent();
+
+        if ($content !== false) {
+            $encrypted = $this->cipherWeave->encrypt($content, $key);
+            $response->setContent($encrypted);
+            $response->headers->set('X-RESPONSE-ENCRYPTED', '1');
+        }
     }
 }
