@@ -1,6 +1,6 @@
 {
     "name": "burakdalyanda/cipher-weave",
-    "description": "description",
+    "description": "A Laravel middleware package for seamless request decryption and response encryption, supporting Laravel 10, 11, and 12.",
     "license": "MIT",
     "type": "library",
     "keywords": [
